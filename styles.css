@@ -166,9 +166,30 @@ textarea {
   max-width: 100%;
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
 .wide-btn {
   width: 100%;
   margin-bottom: 10px;
+}
+
+.attached-file {
+  margin: 0 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #344054;
+  padding: 10px 12px;
+  font-size: 14px;
+  overflow-wrap: anywhere;
 }
 
 .import-status {

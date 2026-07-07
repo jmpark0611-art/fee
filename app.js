@@ -72,6 +72,7 @@ const els = {
   csvInput: document.querySelector("#csvInput"),
   dropZone: document.querySelector("#dropZone"),
   filePickerBtn: document.querySelector("#filePickerBtn"),
+  attachedFileName: document.querySelector("#attachedFileName"),
   importStatus: document.querySelector("#importStatus"),
   sendAllBtn: document.querySelector("#sendAllBtn"),
   bundleSize: document.querySelector("#bundleSize"),
@@ -165,7 +166,7 @@ function bindEvents() {
     state.rows = [];
     renderRows();
   });
-  els.saveSheetBtn.addEventListener("click", saveCurrentSheet);
+  els.saveSheetBtn?.addEventListener("click", saveCurrentSheet);
   els.copyLookupLinkBtn?.addEventListener("click", async () => {
     await navigator.clipboard.writeText(lookupUrl());
     els.copyLookupLinkBtn.textContent = "복사됨";
@@ -179,10 +180,10 @@ function bindEvents() {
   els.filePickerBtn.addEventListener("click", () => {
     els.csvInput.click();
   });
-  els.dropZone.addEventListener("click", () => {
+  els.dropZone?.addEventListener("click", () => {
     els.csvInput.click();
   });
-  els.dropZone.addEventListener("keydown", (event) => {
+  els.dropZone?.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       els.csvInput.click();
@@ -197,14 +198,14 @@ function bindEvents() {
     await importSheetFile(file);
     event.target.value = "";
   });
-  els.dropZone.addEventListener("dragover", (event) => {
+  els.dropZone?.addEventListener("dragover", (event) => {
     event.preventDefault();
     els.dropZone.classList.add("is-active");
   });
-  els.dropZone.addEventListener("dragleave", () => {
+  els.dropZone?.addEventListener("dragleave", () => {
     els.dropZone.classList.remove("is-active");
   });
-  els.dropZone.addEventListener("drop", async (event) => {
+  els.dropZone?.addEventListener("drop", async (event) => {
     event.preventDefault();
     els.dropZone.classList.remove("is-active");
     const [file] = event.dataTransfer.files;
@@ -354,7 +355,6 @@ function renderSavedSheets() {
     item.innerHTML = `
       <div>
         <strong>${escapeHtml(sheet.name)}</strong>
-        <small>${sheet.rows.length}명</small>
       </div>
       <div class="saved-actions">
         <button data-load="${sheet.id}" type="button">불러오기</button>
@@ -372,7 +372,7 @@ function renderExportSheets() {
     els.exportSheetList.innerHTML = `
       <div class="queue-item">
         <strong>저장된 시트가 없습니다.</strong>
-        <div class="queue-meta">먼저 시트 저장을 누른 뒤 CSV 내보내기를 다시 선택하세요.</div>
+        <div class="queue-meta">먼저 파일첨부를 완료한 뒤 CSV 내보내기를 다시 선택하세요.</div>
       </div>
     `;
     return;
@@ -383,7 +383,6 @@ function renderExportSheets() {
     item.className = "queue-item";
     item.innerHTML = `
       <strong>${escapeHtml(sheet.name)}</strong>
-      <div class="queue-meta">${sheet.rows.length}명</div>
       <div class="queue-actions">
         <button data-export="${sheet.id}" class="primary" type="button">CSV 내보내기</button>
         <button data-delete="${sheet.id}" class="danger" type="button">삭제</button>
@@ -528,6 +527,7 @@ async function importSheetFile(file) {
     return;
   }
 
+  setAttachedFile(file.name);
   setImportStatus(`${file.name} 읽는 중...`);
   const extension = file.name.split(".").pop().toLowerCase();
 
@@ -575,6 +575,7 @@ function importRows(rows, sheetName = "가져온 시트") {
   renderRows();
   const phoneCount = state.rows.filter((row) => normalizePhone(row.phone)).length;
   setImportStatus(`${sheetName} 시트에서 ${state.rows.length}행을 불러왔고, 전화번호 ${phoneCount}개를 추출했습니다.`);
+  saveCurrentSheet();
 }
 
 function sheetNameFromFile(fileName) {
@@ -612,6 +613,10 @@ function isSheetFile(file) {
 function setImportStatus(message, isError = false) {
   els.importStatus.textContent = message;
   els.importStatus.classList.toggle("is-error", isError);
+}
+
+function setAttachedFile(fileName) {
+  els.attachedFileName.textContent = fileName || "첨부된 파일 없음";
 }
 
 function toCsv(rows = state.rows) {
