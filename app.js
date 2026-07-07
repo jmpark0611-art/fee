@@ -161,7 +161,10 @@ function bindEvents() {
   });
   els.csvInput.addEventListener("change", async (event) => {
     const [file] = event.target.files;
-    if (!file) return;
+    if (!file) {
+      setImportStatus("선택된 파일이 없습니다.", true);
+      return;
+    }
     await importSheetFile(file);
     event.target.value = "";
   });
@@ -444,6 +447,11 @@ function importCsv(text) {
 }
 
 async function importSheetFile(file) {
+  if (!isSheetFile(file)) {
+    setImportStatus("CSV, XLS, XLSX 파일만 첨부할 수 있습니다.", true);
+    return;
+  }
+
   setImportStatus(`${file.name} 읽는 중...`);
   const extension = file.name.split(".").pop().toLowerCase();
 
