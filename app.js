@@ -63,6 +63,7 @@ const els = {
   filePickerBtn: document.querySelector("#filePickerBtn"),
   importStatus: document.querySelector("#importStatus"),
   sendAllBtn: document.querySelector("#sendAllBtn"),
+  bundleSize: document.querySelector("#bundleSize"),
   intervalInputs: [...document.querySelectorAll('input[name="intervals"]')],
   queueDialog: document.querySelector("#queueDialog"),
   queueList: document.querySelector("#queueList"),
@@ -571,13 +572,54 @@ function downloadCsv() {
 }
 
 function buildQueue() {
-  return state.rows
+  const bundleSize = selectedBundleSize();
+  const items = state.rows
     .filter((row) => row.selected && normalizePhone(row.phone))
     .map((row) => ({
       recipients: [normalizePhone(row.phone)],
       label: row.name || row.phone,
       message: renderMessage(row),
     }));
+
+  return bundleSameMessages(items, bundleSize);
+}
+
+function selectedBundleSize() {
+  const value = Number(els.bundleSize.value) || 1;
+  return Math.min(100, Math.max(1, Math.floor(value)));
+}
+
+function bundleSameMessages(items, bundleSize) {
+  if (bundleSize <= 1) return items;
+
+  const groups = [];
+  let current = null;
+
+  items.forEach((item) => {
+    const canJoin =
+      current &&
+      current.message === item.message &&
+      current.recipients.length < bundleSize;
+
+    if (!canJoin) {
+      current = {
+        recipients: [],
+        labels: [],
+        label: "",
+        message: item.message,
+      };
+      groups.push(current);
+    }
+
+    current.recipients.push(...item.recipients);
+    current.labels.push(item.label);
+    current.label =
+      current.labels.length === 1
+        ? current.labels[0]
+        : `${current.labels[0]} 외 ${current.labels.length - 1}명`;
+  });
+
+  return groups;
 }
 
 function smsHref(item) {
@@ -610,7 +652,7 @@ function renderQueue() {
     card.className = "queue-item";
     card.innerHTML = `
       <strong>${index + 1}. ${escapeHtml(item.label)}</strong>
-      <div class="queue-meta">${escapeHtml(item.recipients.join(", "))}</div>
+      <div class="queue-meta">${item.recipients.length}명 · ${escapeHtml(item.recipients.join(", "))}</div>
       <div class="queue-status">${remainingText} · ${intervalText}</div>
       <div class="preview">${escapeHtml(item.message)}</div>
       <div class="queue-actions">
