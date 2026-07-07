@@ -366,6 +366,15 @@ td input[type="text"] {
   min-width: 120px;
 }
 
+tr.sent-row td {
+  background: #ecfdf3;
+}
+
+tr.sent-row input {
+  border-color: #86efac;
+  background: #f0fdf4;
+}
+
 .preview {
   min-width: 320px;
   max-width: 460px;
@@ -433,6 +442,11 @@ dialog::backdrop {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
+}
+
+.sent-queue-item {
+  border-color: #86efac;
+  background: #ecfdf3;
 }
 
 .queue-meta {

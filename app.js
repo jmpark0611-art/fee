@@ -97,6 +97,7 @@ function createRow(overrides = {}) {
   return {
     id: crypto.randomUUID(),
     selected: true,
+    sent: false,
     phone: "",
     affiliation: "",
     name: "",
@@ -149,6 +150,12 @@ function bindEvents() {
   });
 
   els.queueList.addEventListener("click", async (event) => {
+    const sendIndex = event.target.closest("[data-send]")?.dataset.send;
+    if (sendIndex !== undefined) {
+      markQueueItemSent(Number(sendIndex));
+      return;
+    }
+
     const index = event.target.dataset.copy;
     if (index === undefined) return;
     const item = buildQueue()[Number(index)];
@@ -305,6 +312,7 @@ function renderRows() {
 function createRowElement(row) {
   const tr = document.createElement("tr");
   tr.dataset.id = row.id;
+  if (row.sent) tr.classList.add("sent-row");
 
   const cells = [
     `<td><input data-field="selected" type="checkbox" ${row.selected ? "checked" : ""}></td>`,
@@ -432,10 +440,8 @@ function resetSheet() {
 안녕하세요 12사단 군수참모처 공공요금 담당자 OOO입니다.
 
 안녕하세요 {성명}님.
-{거주지명} {호수}호 검침 청구 내역입니다.
-청구금액: {청구금액}원
-인원별 부담금액: {인원별부담금액}원
-상세내역: {상세링크}`;
+공공요금 청구 내역은 아래 링크에서 본인 확인 후 조회해 주세요.
+{조회링크}`;
   state.rows = [createRow()];
   renderRows();
 }
@@ -657,6 +663,7 @@ function buildQueue() {
   const items = state.rows
     .filter((row) => row.selected && normalizePhone(row.phone))
     .map((row) => ({
+      rowIds: [row.id],
       recipients: [normalizePhone(row.phone)],
       label: row.name || row.phone,
       message: renderMessage(row),
@@ -685,6 +692,7 @@ function bundleSameMessages(items, bundleSize) {
     if (!canJoin) {
       current = {
         recipients: [],
+        rowIds: [],
         labels: [],
         label: "",
         message: item.message,
@@ -693,6 +701,7 @@ function bundleSameMessages(items, bundleSize) {
     }
 
     current.recipients.push(...item.recipients);
+    current.rowIds.push(...item.rowIds);
     current.labels.push(item.label);
     current.label =
       current.labels.length === 1
@@ -727,17 +736,18 @@ function renderQueue() {
     const unlockAt = state.queueCreatedAt + elapsedBefore(index, intervals);
     const remainingMs = unlockAt - now;
     const isReady = remainingMs <= 0;
-    const remainingText = isReady ? "발송 가능" : `${Math.ceil(remainingMs / 1000)}초 후 가능`;
+    const isSent = isQueueItemSent(item);
+    const remainingText = isSent ? "발송완료" : isReady ? "발송 가능" : `${Math.ceil(remainingMs / 1000)}초 후 가능`;
     const intervalText = index === 0 ? "즉시" : `${intervals[(index - 1) % intervals.length] / 1000}초 간격`;
     const card = document.createElement("div");
-    card.className = "queue-item";
+    card.className = `queue-item${isSent ? " sent-queue-item" : ""}`;
     card.innerHTML = `
       <strong>${index + 1}. ${escapeHtml(item.label)}</strong>
       <div class="queue-meta">${item.recipients.length}명 · ${escapeHtml(item.recipients.join(", "))}</div>
       <div class="queue-status">${remainingText} · ${intervalText}</div>
       <div class="preview">${escapeHtml(item.message)}</div>
       <div class="queue-actions">
-        <a class="${isReady ? "" : "disabled"}" href="${isReady ? smsHref(item) : "#"}"><button type="button" class="primary" ${isReady ? "" : "disabled"}>문자 앱 열기</button></a>
+        <a data-send="${index}" class="${isReady && !isSent ? "" : "disabled"}" href="${isReady && !isSent ? smsHref(item) : "#"}"><button type="button" class="primary" ${isReady && !isSent ? "" : "disabled"}>${isSent ? "발송완료" : "문자 앱 열기"}</button></a>
         <button data-copy="${index}" type="button">문구 복사</button>
       </div>
     `;
@@ -761,7 +771,22 @@ function selectedIntervals() {
     .map((input) => Number(input.value) * 1000)
     .filter((value) => Number.isFinite(value) && value > 0);
 
-  return values.length ? values : [60_000, 70_000, 90_000, 120_000];
+  return values.length ? values : [50_000];
+}
+
+function markQueueItemSent(index) {
+  const item = buildQueue()[index];
+  if (!item) return;
+
+  state.rows.forEach((row) => {
+    if (item.rowIds.includes(row.id)) row.sent = true;
+  });
+  renderRows();
+  window.setTimeout(renderQueue, 250);
+}
+
+function isQueueItemSent(item) {
+  return item.rowIds.every((id) => state.rows.find((row) => row.id === id)?.sent);
 }
 
 function elapsedBefore(index, intervals) {
