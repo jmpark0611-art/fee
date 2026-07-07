@@ -294,7 +294,7 @@ function renderMessage(row) {
     "{초과금액}": formatMoney(row.excessAmount),
     "{사용인원}": row.peopleCount,
     "{인원별부담금액}": formatMoney(row.personShareAmount),
-    "{상세링크}": detailUrl(row),
+    "{상세링크}": lookupUrl(),
     "{조회링크}": lookupUrl(),
   };
 
@@ -732,6 +732,13 @@ function renderQueue() {
     return;
   }
 
+  const sentCount = state.rows.filter((row) => row.selected && normalizePhone(row.phone) && row.sent).length;
+  const targetCount = state.rows.filter((row) => row.selected && normalizePhone(row.phone)).length;
+  const summary = document.createElement("div");
+  summary.className = "queue-summary";
+  summary.textContent = `발송 진행: ${sentCount}/${targetCount}명`;
+  els.queueList.appendChild(summary);
+
   queue.forEach((item, index) => {
     const unlockAt = state.queueCreatedAt + elapsedBefore(index, intervals);
     const remainingMs = unlockAt - now;
@@ -782,6 +789,7 @@ function markQueueItemSent(index) {
     if (item.rowIds.includes(row.id)) row.sent = true;
   });
   renderRows();
+  saveCurrentSheet();
   window.setTimeout(renderQueue, 250);
 }
 
