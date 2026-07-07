@@ -1,4 +1,11 @@
 const STORAGE_KEY = "meter-billing-sms-sheets";
+const ADMIN_SECRET_KEY = "meter-billing-admin-secret";
+
+const SUPABASE_URL = "https://pxzvojcxdotayklnpvxs.supabase.co";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB4enZvamN4ZG90YXlrbG5wdnhzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyMTAxODIsImV4cCI6MjA5Nzc4NjE4Mn0.8hEg70t3HjS-23GcfHR0YslMQZyTlja9OiMoGYLyWKU";
+
+const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const fields = [
   ["phone", "전화번호"],
@@ -35,6 +42,20 @@ const headerAliases = {
   peopleCount: ["사용인원", "사용 인원", "인원", "인원수"],
   personShareAmount: ["인원별부담금액", "인원별 부담금액", "인원부담금액", "개인부담금", "부담금액"],
 };
+
+const numericFields = new Set([
+  "unit",
+  "prevReading",
+  "currentReading",
+  "currentUsage",
+  "govSupportUsage",
+  "excessUsage",
+  "billedAmount",
+  "govSupportAmount",
+  "excessAmount",
+  "peopleCount",
+  "personShareAmount",
+]);
 
 const state = {
   rows: [],
@@ -74,8 +95,11 @@ const els = {
   filePickerBtn: document.querySelector("#filePickerBtn"),
   attachedFileName: document.querySelector("#attachedFileName"),
   importStatus: document.querySelector("#importStatus"),
+  adminSecretInput: document.querySelector("#adminSecretInput"),
+  publishBtn: document.querySelector("#publishBtn"),
+  publishStatus: document.querySelector("#publishStatus"),
+  messageLengthHint: document.querySelector("#messageLengthHint"),
   sendAllBtn: document.querySelector("#sendAllBtn"),
-  bundleSize: document.querySelector("#bundleSize"),
   intervalInputs: [...document.querySelectorAll('input[name="intervals"]')],
   queueDialog: document.querySelector("#queueDialog"),
   queueList: document.querySelector("#queueList"),
@@ -91,6 +115,11 @@ function init() {
   state.rows = [createRow()];
   renderRows();
   bindEvents();
+
+  if (els.adminSecretInput) {
+    els.adminSecretInput.value = localStorage.getItem(ADMIN_SECRET_KEY) || "";
+  }
+  updateMessageLengthHint();
 }
 
 function createRow(overrides = {}) {
@@ -124,7 +153,15 @@ function bindEvents() {
     const field = event.target.dataset.field;
     if (!row || !field) return;
 
-    row[field] = field === "selected" ? event.target.checked : event.target.value;
+    if (field === "selected") {
+      row.selected = event.target.checked;
+    } else if (numericFields.has(field)) {
+      const sanitized = normalizeNumericText(event.target.value);
+      row[field] = sanitized;
+      if (event.target.value !== sanitized) event.target.value = sanitized;
+    } else {
+      row[field] = event.target.value;
+    }
     refreshRow(row.id);
   });
 
@@ -149,21 +186,16 @@ function bindEvents() {
     if (deleteId) deleteSavedSheet(deleteId);
   });
 
-  els.queueList.addEventListener("click", async (event) => {
+  els.queueList.addEventListener("click", (event) => {
     const sendIndex = event.target.closest("[data-send]")?.dataset.send;
-    if (sendIndex !== undefined) {
-      markQueueItemSent(Number(sendIndex));
-      return;
-    }
-
-    const index = event.target.dataset.copy;
-    if (index === undefined) return;
-    const item = buildQueue()[Number(index)];
-    await navigator.clipboard.writeText(item.message);
-    event.target.textContent = "복사됨";
+    if (sendIndex === undefined) return;
+    markQueueItemSent(Number(sendIndex));
   });
 
-  els.messageTemplate.addEventListener("input", renderRows);
+  els.messageTemplate.addEventListener("input", () => {
+    renderRows();
+    updateMessageLengthHint();
+  });
   els.addRowBtn?.addEventListener("click", () => {
     state.rows.push(createRow());
     renderRows();
@@ -183,6 +215,7 @@ function bindEvents() {
   });
   els.newSheetBtn?.addEventListener("click", resetSheet);
   els.exportBtn.addEventListener("click", openExportDialog);
+  els.publishBtn?.addEventListener("click", publishLookupData);
   els.closeExportDialogBtn.addEventListener("click", () => els.exportDialog.close());
   els.filePickerBtn.addEventListener("click", () => {
     els.csvInput.click();
@@ -253,9 +286,14 @@ function normalizePhone(phone) {
 }
 
 function normalizeImportedValue(key, value) {
-  const text = String(value || "").trim();
+  const text = String(value ?? "").trim();
   if (key === "phone") return normalizePhone(text);
+  if (numericFields.has(key)) return normalizeNumericText(text);
   return text;
+}
+
+function normalizeNumericText(value) {
+  return String(value ?? "").replace(/[^\d]/g, "");
 }
 
 function formatMoney(value) {
@@ -331,7 +369,8 @@ function inputCell(row, key) {
     key === "personShareAmount" ? "money-red" : key === "excessAmount" ? "money-blue" : "";
   const readonly = key === "phone" ? "readonly" : "";
   const title = key === "phone" ? "엑셀/CSV 파일에서 추출된 전화번호입니다." : "";
-  return `<td><input class="${className}" data-field="${key}" type="text" value="${escapeAttr(row[key])}" ${readonly} title="${title}"></td>`;
+  const numericAttrs = numericFields.has(key) ? 'inputmode="numeric" pattern="[0-9]*"' : "";
+  return `<td><input class="${className}" data-field="${key}" type="text" value="${escapeAttr(row[key])}" ${readonly} title="${title}" ${numericAttrs}></td>`;
 }
 
 function refreshRow(rowId) {
@@ -524,7 +563,8 @@ function parseCsv(text) {
 }
 
 function importCsv(text, fileName = "CSV 시트") {
-  importRows(parseCsv(text), sheetNameFromFile(fileName));
+  const clean = String(text || "").replace(/^\uFEFF/, "");
+  importRows(parseCsv(clean), sheetNameFromFile(fileName));
 }
 
 async function importSheetFile(file) {
@@ -658,9 +698,97 @@ function exportSavedSheet(id) {
   els.exportDialog.close();
 }
 
+async function publishLookupData() {
+  if (!els.publishStatus) return;
+
+  if (!supabaseClient) {
+    setPublishStatus("클라우드 연결 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해 주세요.", true);
+    return;
+  }
+
+  const secret = els.adminSecretInput.value.trim();
+  if (secret.length < 4) {
+    setPublishStatus("관리자 비밀번호를 4자 이상 입력해 주세요.", true);
+    return;
+  }
+
+  const rows = state.rows.filter((row) => normalizePhone(row.phone));
+  if (rows.length === 0) {
+    setPublishStatus("게시할 수신자가 없습니다. 전화번호가 있는 행이 필요합니다.", true);
+    return;
+  }
+
+  setPublishStatus("게시 중...");
+
+  const payload = rows.map((row) => ({
+    phone: normalizePhone(row.phone),
+    affiliation: row.affiliation || "",
+    name: row.name || "",
+    residence: row.residence || "",
+    unit: row.unit || "",
+    prev_reading: row.prevReading || "",
+    current_reading: row.currentReading || "",
+    current_usage: row.currentUsage || "",
+    gov_support_usage: row.govSupportUsage || "",
+    excess_usage: row.excessUsage || "",
+    billed_amount: row.billedAmount || "",
+    gov_support_amount: row.govSupportAmount || "",
+    excess_amount: row.excessAmount || "",
+    people_count: row.peopleCount || "",
+    person_share_amount: row.personShareAmount || "",
+  }));
+
+  try {
+    const { data, error } = await supabaseClient.rpc("billing_replace_recipients", {
+      p_secret: secret,
+      p_sheet_name: els.sheetName.value.trim() || "공공요금시트",
+      p_rows: payload,
+    });
+
+    if (error) {
+      const isSecretError = /invalid_secret/i.test(error.message || "");
+      setPublishStatus(
+        isSecretError ? "관리자 비밀번호가 이전과 다릅니다. 처음 게시 때 정한 비밀번호를 입력해 주세요." : `게시 실패: ${error.message}`,
+        true,
+      );
+      return;
+    }
+
+    localStorage.setItem(ADMIN_SECRET_KEY, secret);
+    setPublishStatus(`${data ?? payload.length}명의 조회 데이터를 게시했습니다. 이제 다른 휴대폰에서도 {조회링크}로 확인할 수 있습니다.`);
+  } catch (error) {
+    setPublishStatus(`게시 실패: ${error.message}`, true);
+  }
+}
+
+function setPublishStatus(message, isError = false) {
+  els.publishStatus.textContent = message;
+  els.publishStatus.classList.toggle("is-error", isError);
+}
+
+function messageByteLength(text) {
+  let bytes = 0;
+  for (const char of String(text || "")) {
+    bytes += /[\x00-\x7F]/.test(char) ? 1 : 2;
+  }
+  return bytes;
+}
+
+function updateMessageLengthHint() {
+  if (!els.messageLengthHint) return;
+
+  const sample = renderMessage(createRow({ name: "홍길동" }));
+  const bytes = messageByteLength(sample);
+  const isShort = bytes <= 80;
+
+  els.messageLengthHint.textContent = isShort
+    ? `문구 약 ${bytes}바이트 · 단문(SMS)으로 발송될 가능성이 높습니다.`
+    : `문구 약 ${bytes}바이트 · 80바이트(약 40자)를 넘으면 장문/MMS로 자동 전환되어 요금이 발생할 수 있습니다. 문구를 줄여주세요.`;
+  els.messageLengthHint.classList.toggle("is-error", !isShort);
+}
+
 function buildQueue() {
-  const bundleSize = selectedBundleSize();
-  const items = state.rows
+  return state.rows
     .filter((row) => row.selected && normalizePhone(row.phone))
     .map((row) => ({
       rowIds: [row.id],
@@ -668,48 +796,6 @@ function buildQueue() {
       label: row.name || row.phone,
       message: renderMessage(row),
     }));
-
-  return bundleSameMessages(items, bundleSize);
-}
-
-function selectedBundleSize() {
-  const value = Number(els.bundleSize.value) || 1;
-  return Math.min(100, Math.max(1, Math.floor(value)));
-}
-
-function bundleSameMessages(items, bundleSize) {
-  if (bundleSize <= 1) return items;
-
-  const groups = [];
-  let current = null;
-
-  items.forEach((item) => {
-    const canJoin =
-      current &&
-      current.message === item.message &&
-      current.recipients.length < bundleSize;
-
-    if (!canJoin) {
-      current = {
-        recipients: [],
-        rowIds: [],
-        labels: [],
-        label: "",
-        message: item.message,
-      };
-      groups.push(current);
-    }
-
-    current.recipients.push(...item.recipients);
-    current.rowIds.push(...item.rowIds);
-    current.labels.push(item.label);
-    current.label =
-      current.labels.length === 1
-        ? current.labels[0]
-        : `${current.labels[0]} 외 ${current.labels.length - 1}명`;
-  });
-
-  return groups;
 }
 
 function smsHref(item) {
@@ -745,18 +831,14 @@ function renderQueue() {
     const isReady = remainingMs <= 0;
     const isSent = isQueueItemSent(item);
     const remainingText = isSent ? "발송완료" : isReady ? "발송 가능" : `${Math.ceil(remainingMs / 1000)}초 후 가능`;
-    const intervalText = index === 0 ? "즉시" : `${intervals[(index - 1) % intervals.length] / 1000}초 간격`;
     const card = document.createElement("div");
     card.className = `queue-item${isSent ? " sent-queue-item" : ""}`;
     card.innerHTML = `
       <strong>${index + 1}. ${escapeHtml(item.label)}</strong>
-      <div class="queue-meta">${item.recipients.length}명 · ${escapeHtml(item.recipients.join(", "))}</div>
-      <div class="queue-status">${remainingText} · ${intervalText}</div>
-      <div class="preview">${escapeHtml(item.message)}</div>
       <div class="queue-actions">
         <a data-send="${index}" class="${isReady && !isSent ? "" : "disabled"}" href="${isReady && !isSent ? smsHref(item) : "#"}"><button type="button" class="primary" ${isReady && !isSent ? "" : "disabled"}>${isSent ? "발송완료" : "문자 앱 열기"}</button></a>
-        <button data-copy="${index}" type="button">문구 복사</button>
       </div>
+      <div class="queue-status">${remainingText}</div>
     `;
     els.queueList.appendChild(card);
   });
@@ -836,24 +918,19 @@ function renderLookupFromHash() {
 }
 
 function bindLookupEvents() {
-  els.lookupForm.addEventListener("submit", (event) => {
+  els.lookupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const rows = lookupRows();
+    els.lookupResult.hidden = true;
+    els.lookupStatus.classList.remove("is-error");
+    els.lookupStatus.textContent = "조회 중...";
 
-    if (rows.length === 0) {
-      els.lookupResult.hidden = true;
-      els.lookupStatus.textContent =
-        "조회 데이터가 이 휴대폰에 없습니다. 현재 GitHub Pages 정적 링크만으로는 관리자 엑셀 데이터가 수신자 휴대폰에 자동 공유되지 않습니다.";
-      els.lookupStatus.classList.add("is-error");
-      return;
-    }
+    const name = els.lookupName.value;
+    const unit = els.lookupUnit.value;
+    const last4 = els.lookupLast4.value.replace(/\D/g, "").slice(-4);
 
-    const row = findLookupRow({
-      name: els.lookupName.value,
-      unit: els.lookupUnit.value,
-      last4: els.lookupLast4.value,
-      rows,
-    });
+    const row =
+      (await lookupRemoteRow({ name, unit, last4 })) ||
+      findLookupRow({ name, unit, last4, rows: lookupRows() });
 
     if (!row) {
       els.lookupResult.hidden = true;
@@ -870,6 +947,40 @@ function bindLookupEvents() {
       .map(([key, label]) => detailItem(label, row[key]))
       .join("");
   });
+}
+
+async function lookupRemoteRow({ name, unit, last4 }) {
+  if (!supabaseClient || !last4) return null;
+
+  try {
+    const { data, error } = await supabaseClient.rpc("billing_lookup_recipient", {
+      p_name: name,
+      p_unit: unit,
+      p_last4: last4,
+    });
+    if (error || !data || data.length === 0) return null;
+
+    const record = data[0];
+    return {
+      phone: record.phone,
+      affiliation: record.affiliation,
+      name: record.name,
+      residence: record.residence,
+      unit: record.unit,
+      prevReading: record.prev_reading,
+      currentReading: record.current_reading,
+      currentUsage: record.current_usage,
+      govSupportUsage: record.gov_support_usage,
+      excessUsage: record.excess_usage,
+      billedAmount: record.billed_amount,
+      govSupportAmount: record.gov_support_amount,
+      excessAmount: record.excess_amount,
+      peopleCount: record.people_count,
+      personShareAmount: record.person_share_amount,
+    };
+  } catch {
+    return null;
+  }
 }
 
 function findLookupRow({ name, unit, last4, rows = lookupRows() }) {

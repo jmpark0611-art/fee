@@ -55,6 +55,26 @@ button.primary:hover {
   background: var(--accent-dark);
 }
 
+button.export-btn {
+  border-color: #107c41;
+  background: #107c41;
+  color: white;
+}
+
+button.export-btn:hover {
+  background: #0b5c30;
+}
+
+button.publish-btn {
+  border-color: #175cd3;
+  background: #175cd3;
+  color: white;
+}
+
+button.publish-btn:hover {
+  background: #0f4aad;
+}
+
 .app-shell,
 .detail-shell {
   width: min(1480px, 100%);
@@ -148,6 +168,7 @@ button.primary:hover {
 }
 
 input[type="text"],
+input[type="password"],
 textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -200,7 +221,8 @@ textarea {
   line-height: 1.4;
 }
 
-.import-status.is-error {
+.import-status.is-error,
+.hint.is-error {
   color: var(--danger);
 }
 

@@ -49,7 +49,7 @@
           <h1>공공요금 단체문자</h1>
         </div>
         <div class="topbar-actions">
-          <button id="exportBtn" type="button">CSV 내보내기</button>
+          <button id="exportBtn" class="export-btn" type="button">CSV 내보내기</button>
         </div>
       </header>
 
@@ -65,10 +65,24 @@
               accept=".csv,.xlsx,.xls"
             />
             <p id="attachedFileName" class="attached-file">첨부된 파일 없음</p>
-            <p id="importStatus" class="import-status" role="status">파일을 첨부하면 전화번호와 카드 항목을 자동 분류합니다.</p>
-            <p class="version-note">업로드 개선 버전 2026.07.07.12</p>
+            <p id="importStatus" class="import-status" role="status">파일을 첨부하면 전화번호와 카드 항목을 자동 분류합니다. 호수 등 숫자 항목은 "호"·쉼표 등을 자동으로 제거하고 숫자만 남깁니다.</p>
+            <p class="version-note">업로드 개선 버전 2026.07.07.13</p>
             <p class="hint">한셀 2018에서 저장한 .xls/.xlsx 파일도 표준 Excel 형식이면 읽을 수 있습니다.</p>
             <input id="sheetNameInput" class="visually-hidden" type="text" value="공공요금 단체문자" />
+          </div>
+
+          <div class="panel">
+            <h2>본인조회 데이터 게시</h2>
+            <p class="hint">
+              게시하면 수신자가 어느 휴대폰에서 문자를 열어도 {조회링크}에서 본인 확인 후 청구 내역을 볼 수 있습니다.
+              첫 게시 때 정한 비밀번호는 이후 업데이트에도 계속 같은 값을 입력해야 합니다.
+            </p>
+            <label class="field">
+              <span>관리자 비밀번호(4자 이상)</span>
+              <input id="adminSecretInput" type="password" autocomplete="off" placeholder="예: 군수2026" />
+            </label>
+            <button id="publishBtn" class="wide-btn publish-btn" type="button">본인조회 데이터 게시</button>
+            <p id="publishStatus" class="import-status" role="status"></p>
           </div>
         </aside>
 
@@ -84,6 +98,7 @@
 안녕하세요 {성명}님.
 공공요금 청구 내역은 아래 링크에서 본인 확인 후 조회해 주세요.
 {조회링크}</textarea>
+            <p id="messageLengthHint" class="hint"></p>
           </div>
 
           <div class="panel compliance">
@@ -93,6 +108,8 @@
               <li>문자에는 성명과 조회 링크만 포함하고, 금액 등 상세 내역은 본인 조회 카드에서 확인하게 하세요.</li>
               <li>광고, 홍보, 영리 목적 문구는 포함하지 마세요.</li>
               <li>개인별 금액이나 상세링크가 다르면 같은 문자로 묶어 보낼 수 없습니다.</li>
+              <li>수신자 여러 명을 한 문자에 묶으면 휴대폰이 그룹 MMS로 자동 전환해 요금이 발생합니다. 발송 큐는 항상 1명씩 개별 SMS로 열립니다.</li>
+              <li>문구를 짧게 유지할수록(약 80바이트/40자 이내) 단문 SMS로 남을 가능성이 높습니다. 위 문구 바이트 안내를 참고하세요.</li>
             </ul>
           </div>
 
@@ -103,10 +120,6 @@
               <span>간격</span>
               <strong>50초</strong>
             </div>
-            <label class="compact-field">
-              <span>묶음 인원</span>
-              <input id="bundleSize" type="number" min="1" max="100" value="20" />
-            </label>
             <button id="sendAllBtn" class="primary" type="button">발송 큐 만들기</button>
           </div>
 
@@ -159,6 +172,7 @@
     </dialog>
 
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <script src="app.js?v=20260707-12"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="app.js?v=20260707-13"></script>
   </body>
 </html>
