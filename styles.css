@@ -1,0 +1,452 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #1d232b;
+  --muted: #667085;
+  --line: #d8dde5;
+  --accent: #0f766e;
+  --accent-dark: #0b5e58;
+  --danger: #b42318;
+  --blue: #175cd3;
+  --red: #d92d20;
+  --shadow: 0 12px 30px rgba(16, 24, 40, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  padding: 0 14px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: #a8b1bd;
+}
+
+button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
+button.primary:hover {
+  background: var(--accent-dark);
+}
+
+.app-shell,
+.detail-shell {
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar,
+.detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.topbar h1,
+.detail-header h1 {
+  margin: 2px 0 0;
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.topbar-actions,
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.sidebar,
+.content {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+
+.panel,
+.detail-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 17px;
+}
+
+.panel-heading,
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.icon-btn {
+  width: 40px;
+  padding: 0;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.field span,
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+input[type="text"],
+textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--ink);
+  padding: 10px 12px;
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.file-input {
+  max-width: 100%;
+}
+
+.drop-zone {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  margin-bottom: 12px;
+  border: 1px dashed #98a2b3;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475467;
+  padding: 14px;
+  text-align: center;
+}
+
+.drop-zone.is-active {
+  border-color: var(--accent);
+  background: #ecfdf3;
+  color: var(--accent-dark);
+}
+
+.saved-list {
+  display: grid;
+  gap: 8px;
+}
+
+.saved-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.saved-item strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.saved-item small {
+  color: var(--muted);
+}
+
+.composer {
+  display: grid;
+  gap: 10px;
+}
+
+.compliance,
+.toolbar {
+  box-shadow: none;
+}
+
+.compliance ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #344054;
+  line-height: 1.55;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.compact-field,
+.interval-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.compact-field input {
+  width: 74px;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.interval-group {
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.interval-group label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink);
+}
+
+.table-wrap {
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+table {
+  width: 100%;
+  min-width: 2100px;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eef2f6;
+  color: #344054;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+td input[type="text"] {
+  min-width: 120px;
+}
+
+.preview {
+  min-width: 320px;
+  max-width: 460px;
+  color: #344054;
+  font-size: 14px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.link-cell {
+  white-space: nowrap;
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.red-text,
+.money-red,
+.amount-red {
+  color: var(--red);
+  font-weight: 800;
+}
+
+.blue-text,
+.money-blue,
+.amount-blue {
+  color: var(--blue);
+  font-weight: 800;
+}
+
+dialog {
+  width: min(760px, calc(100% - 32px));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: var(--shadow);
+}
+
+dialog::backdrop {
+  background: rgba(16, 24, 40, 0.45);
+}
+
+.dialog-header {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.queue-list {
+  display: grid;
+  gap: 10px;
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  padding: 16px;
+}
+
+.queue-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.queue-meta {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.queue-status {
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.queue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.queue-actions a.disabled {
+  pointer-events: none;
+}
+
+.queue-actions a.disabled button {
+  background: #eef2f6;
+  border-color: var(--line);
+  color: #8a94a3;
+  cursor: not-allowed;
+}
+
+.detail-shell {
+  max-width: 760px;
+}
+
+.detail-header {
+  display: block;
+}
+
+.detail-card {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 16px;
+}
+
+.detail-row:last-child {
+  border-bottom: 0;
+}
+
+.detail-row span {
+  color: var(--muted);
+}
+
+.detail-row strong {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 880px) {
+  .app-shell,
+  .detail-shell {
+    padding: 16px;
+  }
+
+  .topbar,
+  .workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    grid-template-columns: 1fr;
+  }
+
+  .detail-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
