@@ -220,7 +220,7 @@ input[readonly] {
 
 .saved-item {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
@@ -237,6 +237,26 @@ input[readonly] {
 
 .saved-item small {
   color: var(--muted);
+}
+
+.saved-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.sheet-name-input {
+  border-color: #0f766e;
+  background: #ecfdf3;
+  color: #064e3b;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.sheet-name-input.is-imported {
+  border-color: #175cd3;
+  background: #eff8ff;
+  color: #175cd3;
 }
 
 .composer {

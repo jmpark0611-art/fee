@@ -124,6 +124,8 @@ function bindEvents() {
   els.savedSheets.addEventListener("click", (event) => {
     const id = event.target.dataset.load;
     if (id) loadSheet(id);
+    const deleteId = event.target.dataset.delete;
+    if (deleteId) deleteSavedSheet(deleteId);
   });
 
   els.queueList.addEventListener("click", async (event) => {
@@ -321,7 +323,10 @@ function renderSavedSheets() {
         <strong>${escapeHtml(sheet.name)}</strong>
         <small>${sheet.rows.length}명</small>
       </div>
-      <button data-load="${sheet.id}" type="button">불러오기</button>
+      <div class="saved-actions">
+        <button data-load="${sheet.id}" type="button">불러오기</button>
+        <button data-delete="${sheet.id}" class="danger" type="button">삭제</button>
+      </div>
     `;
     els.savedSheets.appendChild(item);
   });
@@ -347,13 +352,21 @@ function loadSheet(id) {
   if (!sheet) return;
 
   els.sheetName.value = sheet.name;
+  els.sheetName.classList.remove("is-imported");
   els.messageTemplate.value = sheet.template;
   state.rows = sheet.rows.map((row) => createRow(row));
   renderRows();
 }
 
+function deleteSavedSheet(id) {
+  state.sheets = state.sheets.filter((sheet) => sheet.id !== id);
+  persistSheets();
+  renderSavedSheets();
+}
+
 function resetSheet() {
   els.sheetName.value = "7월 검침 청구";
+  els.sheetName.classList.remove("is-imported");
   els.messageTemplate.value = `안녕하세요 {성명}님.
 {거주지명} {호수}호 검침 청구 내역입니다.
 청구금액: {청구금액}원
@@ -440,20 +453,8 @@ function parseCsv(text) {
   return rows.filter((line) => line.some((cell) => cell.trim()));
 }
 
-function importCsv(text) {
-  const [headers = [], ...records] = parseCsv(text);
-  const normalizedHeaders = headers.map((header) => header.trim());
-
-  state.rows = records.map((record) => {
-    const data = Object.fromEntries(normalizedHeaders.map((header, index) => [header, record[index] || ""]));
-    const row = createRow();
-    fields.forEach(([key, label]) => {
-      row[key] = data[label] || "";
-    });
-    return row;
-  });
-
-  renderRows();
+function importCsv(text, fileName = "CSV 시트") {
+  importRows(parseCsv(text), sheetNameFromFile(fileName));
 }
 
 async function importSheetFile(file) {
@@ -476,7 +477,7 @@ async function importSheetFile(file) {
       const [firstSheetName] = workbook.SheetNames;
       const sheet = workbook.Sheets[firstSheetName];
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-      importRows(rows, file.name);
+      importRows(rows, firstSheetName || sheetNameFromFile(file.name));
     } catch (error) {
       setImportStatus(`Excel 파일을 읽지 못했습니다: ${error.message}`, true);
     }
@@ -490,10 +491,11 @@ async function importSheetFile(file) {
   }
 }
 
-function importRows(rows, fileName = "시트") {
+function importRows(rows, sheetName = "가져온 시트") {
   const [headers = [], ...records] = rows;
   const normalizedHeaders = headers.map((header) => String(header).trim());
   const columnMap = buildColumnMap(normalizedHeaders);
+  applyImportedSheetName(sheetName);
 
   state.rows = records
     .filter((record) => record.some((cell) => String(cell).trim()))
@@ -507,7 +509,16 @@ function importRows(rows, fileName = "시트") {
 
   renderRows();
   const phoneCount = state.rows.filter((row) => normalizePhone(row.phone)).length;
-  setImportStatus(`${fileName}에서 ${state.rows.length}행을 불러왔고, 전화번호 ${phoneCount}개를 추출했습니다.`);
+  setImportStatus(`${sheetName} 시트에서 ${state.rows.length}행을 불러왔고, 전화번호 ${phoneCount}개를 추출했습니다.`);
+}
+
+function sheetNameFromFile(fileName) {
+  return String(fileName || "가져온 시트").replace(/\.[^.]+$/, "");
+}
+
+function applyImportedSheetName(sheetName) {
+  els.sheetName.value = sheetName || "가져온 시트";
+  els.sheetName.classList.add("is-imported");
 }
 
 function buildColumnMap(headers) {
