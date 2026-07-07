@@ -208,7 +208,17 @@ function persistSheets() {
 }
 
 function normalizePhone(phone) {
-  return String(phone || "").replace(/[^\d+]/g, "");
+  const raw = String(phone || "").trim().replace(/^="?(.+?)"?$/, "$1");
+  const digits = raw.replace(/[^\d]/g, "");
+  if (/^10\d{7,8}$/.test(digits)) return `0${digits}`;
+  if (/^1[016789]\d{7,8}$/.test(digits)) return `0${digits}`;
+  return digits;
+}
+
+function normalizeImportedValue(key, value) {
+  const text = String(value || "").trim();
+  if (key === "phone") return normalizePhone(text);
+  return text;
 }
 
 function formatMoney(value) {
@@ -490,7 +500,7 @@ function importRows(rows, fileName = "시트") {
     .map((record) => {
       const row = createRow();
       Object.entries(columnMap).forEach(([key, index]) => {
-        row[key] = String(record[index] || "");
+        row[key] = normalizeImportedValue(key, record[index]);
       });
       return row;
     });
