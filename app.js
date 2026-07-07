@@ -57,6 +57,9 @@ const els = {
   lookupResult: document.querySelector("#lookupResult"),
   sheetName: document.querySelector("#sheetNameInput"),
   savedSheets: document.querySelector("#savedSheets"),
+  exportDialog: document.querySelector("#exportDialog"),
+  exportSheetList: document.querySelector("#exportSheetList"),
+  closeExportDialogBtn: document.querySelector("#closeExportDialogBtn"),
   messageTemplate: document.querySelector("#messageTemplate"),
   recipientRows: document.querySelector("#recipientRows"),
   addRowBtn: document.querySelector("#addRowBtn"),
@@ -86,7 +89,6 @@ function init() {
 
   state.rows = [createRow()];
   renderRows();
-  renderSavedSheets();
   bindEvents();
 }
 
@@ -131,9 +133,16 @@ function bindEvents() {
     renderRows();
   });
 
-  els.savedSheets.addEventListener("click", (event) => {
+  els.savedSheets?.addEventListener("click", (event) => {
     const id = event.target.dataset.load;
     if (id) loadSheet(id);
+    const deleteId = event.target.dataset.delete;
+    if (deleteId) deleteSavedSheet(deleteId);
+  });
+
+  els.exportSheetList.addEventListener("click", (event) => {
+    const exportId = event.target.dataset.export;
+    if (exportId) exportSavedSheet(exportId);
     const deleteId = event.target.dataset.delete;
     if (deleteId) deleteSavedSheet(deleteId);
   });
@@ -147,25 +156,26 @@ function bindEvents() {
   });
 
   els.messageTemplate.addEventListener("input", renderRows);
-  els.addRowBtn.addEventListener("click", () => {
+  els.addRowBtn?.addEventListener("click", () => {
     state.rows.push(createRow());
     renderRows();
   });
-  els.addSampleBtn.addEventListener("click", addSampleRows);
+  els.addSampleBtn?.addEventListener("click", addSampleRows);
   els.clearBtn.addEventListener("click", () => {
     state.rows = [];
     renderRows();
   });
   els.saveSheetBtn.addEventListener("click", saveCurrentSheet);
-  els.copyLookupLinkBtn.addEventListener("click", async () => {
+  els.copyLookupLinkBtn?.addEventListener("click", async () => {
     await navigator.clipboard.writeText(lookupUrl());
     els.copyLookupLinkBtn.textContent = "복사됨";
     window.setTimeout(() => {
       els.copyLookupLinkBtn.textContent = "조회 링크 복사";
     }, 1500);
   });
-  els.newSheetBtn.addEventListener("click", resetSheet);
-  els.exportBtn.addEventListener("click", downloadCsv);
+  els.newSheetBtn?.addEventListener("click", resetSheet);
+  els.exportBtn.addEventListener("click", openExportDialog);
+  els.closeExportDialogBtn.addEventListener("click", () => els.exportDialog.close());
   els.filePickerBtn.addEventListener("click", () => {
     els.csvInput.click();
   });
@@ -327,6 +337,7 @@ function refreshRow(rowId) {
 }
 
 function renderSavedSheets() {
+  if (!els.savedSheets) return;
   els.savedSheets.innerHTML = "";
 
   if (state.sheets.length === 0) {
@@ -354,6 +365,34 @@ function renderSavedSheets() {
   });
 }
 
+function renderExportSheets() {
+  els.exportSheetList.innerHTML = "";
+
+  if (state.sheets.length === 0) {
+    els.exportSheetList.innerHTML = `
+      <div class="queue-item">
+        <strong>저장된 시트가 없습니다.</strong>
+        <div class="queue-meta">먼저 시트 저장을 누른 뒤 CSV 내보내기를 다시 선택하세요.</div>
+      </div>
+    `;
+    return;
+  }
+
+  state.sheets.forEach((sheet) => {
+    const item = document.createElement("div");
+    item.className = "queue-item";
+    item.innerHTML = `
+      <strong>${escapeHtml(sheet.name)}</strong>
+      <div class="queue-meta">${sheet.rows.length}명</div>
+      <div class="queue-actions">
+        <button data-export="${sheet.id}" class="primary" type="button">CSV 내보내기</button>
+        <button data-delete="${sheet.id}" class="danger" type="button">삭제</button>
+      </div>
+    `;
+    els.exportSheetList.appendChild(item);
+  });
+}
+
 function saveCurrentSheet() {
   const name = els.sheetName.value.trim() || "이름 없는 시트";
   const sheet = {
@@ -366,7 +405,7 @@ function saveCurrentSheet() {
 
   state.sheets = [sheet, ...state.sheets.filter((item) => item.name !== name)].slice(0, 20);
   persistSheets();
-  renderSavedSheets();
+  renderExportSheets();
 }
 
 function loadSheet(id) {
@@ -384,12 +423,16 @@ function deleteSavedSheet(id) {
   state.sheets = state.sheets.filter((sheet) => sheet.id !== id);
   persistSheets();
   renderSavedSheets();
+  renderExportSheets();
 }
 
 function resetSheet() {
-  els.sheetName.value = "7월 검침 청구";
+  els.sheetName.value = "공공요금 단체문자";
   els.sheetName.classList.remove("is-imported");
-  els.messageTemplate.value = `안녕하세요 {성명}님.
+  els.messageTemplate.value = `[스팸문자 아님]
+안녕하세요 12사단 군수참모처 공공요금 담당자 OOO입니다.
+
+안녕하세요 {성명}님.
 {거주지명} {호수}호 검침 청구 내역입니다.
 청구금액: {청구금액}원
 인원별 부담금액: {인원별부담금액}원
@@ -571,9 +614,9 @@ function setImportStatus(message, isError = false) {
   els.importStatus.classList.toggle("is-error", isError);
 }
 
-function toCsv() {
+function toCsv(rows = state.rows) {
   const header = fields.map(([, label]) => label);
-  const lines = state.rows.map((row) => fields.map(([key]) => csvCell(row[key])).join(","));
+  const lines = rows.map((row) => fields.map(([key]) => csvCell(row[key])).join(","));
   return [header.join(","), ...lines].join("\r\n");
 }
 
@@ -582,14 +625,26 @@ function csvCell(value) {
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-function downloadCsv() {
-  const blob = new Blob(["\ufeff", toCsv()], { type: "text/csv;charset=utf-8" });
+function downloadCsv(rows = state.rows, fileName = els.sheetName.value.trim() || "공공요금시트") {
+  const blob = new Blob(["\ufeff", toCsv(rows)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `${els.sheetName.value.trim() || "검침청구시트"}.csv`;
+  link.download = `${fileName}.csv`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function openExportDialog() {
+  renderExportSheets();
+  els.exportDialog.showModal();
+}
+
+function exportSavedSheet(id) {
+  const sheet = state.sheets.find((item) => item.id === id);
+  if (!sheet) return;
+  downloadCsv(sheet.rows, sheet.name);
+  els.exportDialog.close();
 }
 
 function buildQueue() {
