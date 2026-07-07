@@ -457,6 +457,27 @@ dialog::backdrop {
   overflow: hidden;
 }
 
+.lookup-form {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.lookup-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.lookup-form span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .detail-row {
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);

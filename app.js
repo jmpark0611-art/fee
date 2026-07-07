@@ -46,8 +46,15 @@ const state = {
 const els = {
   appView: document.querySelector("#appView"),
   detailView: document.querySelector("#detailView"),
+  lookupView: document.querySelector("#lookupView"),
   detailTitle: document.querySelector("#detailTitle"),
   detailCard: document.querySelector("#detailCard"),
+  lookupForm: document.querySelector("#lookupForm"),
+  lookupName: document.querySelector("#lookupName"),
+  lookupUnit: document.querySelector("#lookupUnit"),
+  lookupLast4: document.querySelector("#lookupLast4"),
+  lookupStatus: document.querySelector("#lookupStatus"),
+  lookupResult: document.querySelector("#lookupResult"),
   sheetName: document.querySelector("#sheetNameInput"),
   savedSheets: document.querySelector("#savedSheets"),
   messageTemplate: document.querySelector("#messageTemplate"),
@@ -56,6 +63,7 @@ const els = {
   addSampleBtn: document.querySelector("#addSampleBtn"),
   clearBtn: document.querySelector("#clearBtn"),
   saveSheetBtn: document.querySelector("#saveSheetBtn"),
+  copyLookupLinkBtn: document.querySelector("#copyLookupLinkBtn"),
   newSheetBtn: document.querySelector("#newSheetBtn"),
   exportBtn: document.querySelector("#exportBtn"),
   csvInput: document.querySelector("#csvInput"),
@@ -74,6 +82,7 @@ init();
 
 function init() {
   if (renderDetailFromHash()) return;
+  if (renderLookupFromHash()) return;
 
   state.rows = [createRow()];
   renderRows();
@@ -148,6 +157,13 @@ function bindEvents() {
     renderRows();
   });
   els.saveSheetBtn.addEventListener("click", saveCurrentSheet);
+  els.copyLookupLinkBtn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(lookupUrl());
+    els.copyLookupLinkBtn.textContent = "복사됨";
+    window.setTimeout(() => {
+      els.copyLookupLinkBtn.textContent = "조회 링크 복사";
+    }, 1500);
+  });
   els.newSheetBtn.addEventListener("click", resetSheet);
   els.exportBtn.addEventListener("click", downloadCsv);
   els.filePickerBtn.addEventListener("click", () => {
@@ -239,6 +255,10 @@ function detailUrl(row) {
   return `${location.origin}${location.pathname}#detail=${encoded}`;
 }
 
+function lookupUrl() {
+  return `${location.origin}${location.pathname}#lookup`;
+}
+
 function renderMessage(row) {
   const values = {
     "{전화번호}": row.phone,
@@ -257,6 +277,7 @@ function renderMessage(row) {
     "{사용인원}": row.peopleCount,
     "{인원별부담금액}": formatMoney(row.personShareAmount),
     "{상세링크}": detailUrl(row),
+    "{조회링크}": lookupUrl(),
   };
 
   return Object.entries(values).reduce(
@@ -709,6 +730,66 @@ function renderDetailFromHash() {
   } catch {
     return false;
   }
+}
+
+function renderLookupFromHash() {
+  if (location.hash !== "#lookup") return false;
+
+  els.appView.hidden = true;
+  els.detailView.hidden = true;
+  els.lookupView.hidden = false;
+  bindLookupEvents();
+  return true;
+}
+
+function bindLookupEvents() {
+  els.lookupForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const row = findLookupRow({
+      name: els.lookupName.value,
+      unit: els.lookupUnit.value,
+      last4: els.lookupLast4.value,
+    });
+
+    if (!row) {
+      els.lookupResult.hidden = true;
+      els.lookupStatus.textContent = "일치하는 청구 내역을 찾지 못했습니다.";
+      els.lookupStatus.classList.add("is-error");
+      return;
+    }
+
+    els.lookupStatus.textContent = "본인 청구 내역을 찾았습니다.";
+    els.lookupStatus.classList.remove("is-error");
+    els.lookupResult.hidden = false;
+    els.lookupResult.innerHTML = fields
+      .filter(([key]) => key !== "phone")
+      .map(([key, label]) => detailItem(label, row[key]))
+      .join("");
+  });
+}
+
+function findLookupRow({ name, unit, last4 }) {
+  const cleanName = normalizeLookupText(name);
+  const cleanUnit = normalizeLookupText(unit);
+  const cleanLast4 = String(last4 || "").replace(/\D/g, "").slice(-4);
+
+  return lookupRows().find((row) => {
+    const rowPhone = normalizePhone(row.phone);
+    return (
+      normalizeLookupText(row.name) === cleanName &&
+      normalizeLookupText(row.unit) === cleanUnit &&
+      rowPhone.endsWith(cleanLast4)
+    );
+  });
+}
+
+function lookupRows() {
+  const [latestSheet] = loadSheets();
+  return latestSheet?.rows || state.rows || [];
+}
+
+function normalizeLookupText(value) {
+  return String(value || "").trim().replace(/\s/g, "");
 }
 
 function detailItem(label, value) {
