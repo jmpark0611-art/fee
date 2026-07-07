@@ -60,6 +60,8 @@ const els = {
   exportBtn: document.querySelector("#exportBtn"),
   csvInput: document.querySelector("#csvInput"),
   dropZone: document.querySelector("#dropZone"),
+  filePickerBtn: document.querySelector("#filePickerBtn"),
+  importStatus: document.querySelector("#importStatus"),
   sendAllBtn: document.querySelector("#sendAllBtn"),
   intervalInputs: [...document.querySelectorAll('input[name="intervals"]')],
   queueDialog: document.querySelector("#queueDialog"),
@@ -145,6 +147,18 @@ function bindEvents() {
   els.saveSheetBtn.addEventListener("click", saveCurrentSheet);
   els.newSheetBtn.addEventListener("click", resetSheet);
   els.exportBtn.addEventListener("click", downloadCsv);
+  els.filePickerBtn.addEventListener("click", () => {
+    els.csvInput.click();
+  });
+  els.dropZone.addEventListener("click", () => {
+    els.csvInput.click();
+  });
+  els.dropZone.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      els.csvInput.click();
+    }
+  });
   els.csvInput.addEventListener("change", async (event) => {
     const [file] = event.target.files;
     if (!file) return;
@@ -259,7 +273,9 @@ function createRowElement(row) {
 function inputCell(row, key) {
   const className =
     key === "personShareAmount" ? "money-red" : key === "excessAmount" ? "money-blue" : "";
-  return `<td><input class="${className}" data-field="${key}" type="text" value="${escapeAttr(row[key])}"></td>`;
+  const readonly = key === "phone" ? "readonly" : "";
+  const title = key === "phone" ? "엑셀/CSV 파일에서 추출된 전화번호입니다." : "";
+  return `<td><input class="${className}" data-field="${key}" type="text" value="${escapeAttr(row[key])}" ${readonly} title="${title}"></td>`;
 }
 
 function refreshRow(rowId) {
@@ -428,26 +444,35 @@ function importCsv(text) {
 }
 
 async function importSheetFile(file) {
+  setImportStatus(`${file.name} 읽는 중...`);
   const extension = file.name.split(".").pop().toLowerCase();
 
   if (extension === "xlsx" || extension === "xls") {
     if (!window.XLSX) {
-      alert("Excel 파일을 읽는 라이브러리를 불러오지 못했습니다. CSV로 저장한 뒤 다시 가져와 주세요.");
+      setImportStatus("Excel 파일 읽기 라이브러리를 불러오지 못했습니다. CSV로 저장한 뒤 다시 가져와 주세요.", true);
       return;
     }
 
-    const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-    const [firstSheetName] = workbook.SheetNames;
-    const sheet = workbook.Sheets[firstSheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-    importRows(rows);
+    try {
+      const workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
+      const [firstSheetName] = workbook.SheetNames;
+      const sheet = workbook.Sheets[firstSheetName];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+      importRows(rows, file.name);
+    } catch (error) {
+      setImportStatus(`Excel 파일을 읽지 못했습니다: ${error.message}`, true);
+    }
     return;
   }
 
-  importCsv(await file.text());
+  try {
+    importCsv(await file.text(), file.name);
+  } catch (error) {
+    setImportStatus(`CSV 파일을 읽지 못했습니다: ${error.message}`, true);
+  }
 }
 
-function importRows(rows) {
+function importRows(rows, fileName = "시트") {
   const [headers = [], ...records] = rows;
   const normalizedHeaders = headers.map((header) => String(header).trim());
   const columnMap = buildColumnMap(normalizedHeaders);
@@ -463,6 +488,8 @@ function importRows(rows) {
     });
 
   renderRows();
+  const phoneCount = state.rows.filter((row) => normalizePhone(row.phone)).length;
+  setImportStatus(`${fileName}에서 ${state.rows.length}행을 불러왔고, 전화번호 ${phoneCount}개를 추출했습니다.`);
 }
 
 function buildColumnMap(headers) {
@@ -486,6 +513,11 @@ function normalizeHeader(value) {
 
 function isSheetFile(file) {
   return /\.(csv|xlsx|xls)$/i.test(file.name);
+}
+
+function setImportStatus(message, isError = false) {
+  els.importStatus.textContent = message;
+  els.importStatus.classList.toggle("is-error", isError);
 }
 
 function toCsv() {

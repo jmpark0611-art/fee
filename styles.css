@@ -166,6 +166,28 @@ textarea {
   max-width: 100%;
 }
 
+.wide-btn {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.import-status {
+  min-height: 20px;
+  margin: 8px 0;
+  color: var(--accent-dark);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.import-status.is-error {
+  color: var(--danger);
+}
+
+input[readonly] {
+  background: #f2f4f7;
+  color: #475467;
+}
+
 .drop-zone {
   display: grid;
   place-items: center;

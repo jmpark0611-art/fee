@@ -46,12 +46,14 @@
             <div id="dropZone" class="drop-zone" tabindex="0">
               Excel/CSV 파일을 여기에 끌어놓거나 복사 후 붙여넣기
             </div>
+            <button id="filePickerBtn" class="wide-btn" type="button">엑셀/CSV 파일 첨부</button>
             <input
               id="csvInput"
               class="file-input"
               type="file"
               accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             />
+            <p id="importStatus" class="import-status" role="status">파일을 첨부하면 전화번호와 카드 항목을 자동 분류합니다.</p>
             <p class="hint">한셀 2018에서 저장한 .xls/.xlsx 파일도 표준 Excel 형식이면 읽을 수 있습니다.</p>
           </div>
         </aside>
