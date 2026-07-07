@@ -838,15 +838,26 @@ function renderLookupFromHash() {
 function bindLookupEvents() {
   els.lookupForm.addEventListener("submit", (event) => {
     event.preventDefault();
+    const rows = lookupRows();
+
+    if (rows.length === 0) {
+      els.lookupResult.hidden = true;
+      els.lookupStatus.textContent =
+        "조회 데이터가 이 휴대폰에 없습니다. 현재 GitHub Pages 정적 링크만으로는 관리자 엑셀 데이터가 수신자 휴대폰에 자동 공유되지 않습니다.";
+      els.lookupStatus.classList.add("is-error");
+      return;
+    }
+
     const row = findLookupRow({
       name: els.lookupName.value,
       unit: els.lookupUnit.value,
       last4: els.lookupLast4.value,
+      rows,
     });
 
     if (!row) {
       els.lookupResult.hidden = true;
-      els.lookupStatus.textContent = "일치하는 청구 내역을 찾지 못했습니다.";
+      els.lookupStatus.textContent = "일치하는 청구 내역을 찾지 못했습니다. 성명, 호수, 전화번호 뒷4자리를 다시 확인해 주세요.";
       els.lookupStatus.classList.add("is-error");
       return;
     }
@@ -861,16 +872,16 @@ function bindLookupEvents() {
   });
 }
 
-function findLookupRow({ name, unit, last4 }) {
+function findLookupRow({ name, unit, last4, rows = lookupRows() }) {
   const cleanName = normalizeLookupText(name);
-  const cleanUnit = normalizeLookupText(unit);
+  const cleanUnit = normalizeLookupUnit(unit);
   const cleanLast4 = String(last4 || "").replace(/\D/g, "").slice(-4);
 
-  return lookupRows().find((row) => {
+  return rows.find((row) => {
     const rowPhone = normalizePhone(row.phone);
     return (
       normalizeLookupText(row.name) === cleanName &&
-      normalizeLookupText(row.unit) === cleanUnit &&
+      normalizeLookupUnit(row.unit) === cleanUnit &&
       rowPhone.endsWith(cleanLast4)
     );
   });
@@ -883,6 +894,12 @@ function lookupRows() {
 
 function normalizeLookupText(value) {
   return String(value || "").trim().replace(/\s/g, "");
+}
+
+function normalizeLookupUnit(value) {
+  const text = normalizeLookupText(value).replace(/호$/g, "");
+  const digits = text.replace(/\D/g, "");
+  return digits ? String(Number(digits)) : text;
 }
 
 function detailItem(label, value) {
